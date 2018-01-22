@@ -1,4 +1,7 @@
 %% audio_inpainting tests Dörfler Datasets
+% this script reproduces the results presented in the paper. 
+% Please note, that the LTFAT toolbox (http://ltfat.sourceforge.net/) has 
+% to be included and added to the path.
 
 clear;
 close all;
@@ -8,16 +11,14 @@ close all;
 % 1: Strings
 % 2: Piano
 % 3: Percussion
-% 4: Voice (male)
-% 5: Voice (female)
-% 6: Jazz
-snum = 6;
+% 4: Jazz
+snum = 4;
 
-filename = ['./wav/doerfler/sig_' num2str(snum) '.wav'];
+filename = ['./wav/sig_' num2str(snum) '.wav'];
 [s,fs] = audioread(filename);
 
-if snum==6
-    s = s(1:100000);
+if snum==4
+    s = s(1:200000);
 else
     s = s(1:100000);
 end
@@ -31,9 +32,15 @@ soundsc(s,fs)
 
 %%   automatic testrun, RANDOM
 
+
+addpath('Methods');
+
 p = 0.8; %percentage of coefficients to delete
 
-snum = [1,2,3,6];
+
+
+
+snum = 1:4;
 tauvec = [5e-3 1e-2 2.5e-2 5e-2 7.5e-2 1e-1 2.5e-1 5e-1 7.5e-1 1 5 10];
 
 
@@ -67,12 +74,12 @@ settings.plotting = 0;
 zzz = 1;
 zzztotal = numel(res(:));
 fix(clock)
-for iii=4:length(snum)
+for iii=1:length(snum)
     %get signal
-    filename = ['./wav/doerfler/sig_' num2str(snum(iii)) '.wav'];
+    filename = ['./wav/sig_' num2str(snum(iii)) '.wav'];
     [s,fs] = audioread(filename);
-    if snum(iii)==6
-        s = s(1:260000);
+    if snum(iii)==4
+        s = s(1:200000);
     else
         s = s(1:100000);
     end
@@ -98,7 +105,7 @@ for iii=4:length(snum)
     M = logical(1-Mask);
     snr_m = @(sol) 20 *log10(std(s(M))/std(sol(M)-s(M)));
     
-    for jjj=3:length(transvec)
+    for jjj=1:length(transvec)
         settings.trans = transvec{jjj};
         
         for kkk=1:length(threshvec)
@@ -371,4 +378,7 @@ end
 
 
 save('Experiments_DRvsFistavsSynvsAna_relnorm','res_relnorm');
+
+
+
 
