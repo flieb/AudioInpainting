@@ -6,6 +6,13 @@
 clear;
 close all;
 
+addpath('Methods');
+if (exist('dgtreal') ~= 2)
+    error('Please include LTFAT toolbox');
+else
+    warning off; %some methods in the ltfat toolbox might produce warnings
+end
+
 %%
 
 % 1: Strings
@@ -33,7 +40,6 @@ soundsc(s,fs)
 %%   automatic testrun, RANDOM
 
 
-addpath('Methods');
 
 p = 0.8; %percentage of coefficients to delete
 
@@ -134,7 +140,7 @@ save('Experiments_randomMask_New','res');
 
 gaplengthvec = [2.5 5 7.5 10 12.5 15 17.5 20 22.5 25 27.5 30];
 
-snum = [1,2,3,6];
+snum = [1,2,3,4];
 tauvec = [7.5e-3 1e-2 2.5e-2 5e-2 7.5e-2 1e-1 2.5e-1 5e-1 7.5e-1 1 2.5 5 7.5 10 25 50 75 100];
 
 transvec = [{'gab'},{'erb'}];
@@ -165,7 +171,7 @@ fix(clock)
 
 for iii=1:length(snum)
     %get signal
-    filename = ['./wav/doerfler/sig_' num2str(snum(iii)) '.wav'];
+    filename = ['./wav/sig_' num2str(snum(iii)) '.wav'];
     [s,fs] = audioread(filename);
     s = s(1:100000);
     if snum(iii) == 1
@@ -251,7 +257,7 @@ save('Experiments_ConsecutiveDoerflerData_newERB','res');
 
 %note that the inpainting toolbox from Adler et al. has to be included
 
-snum = [1,2,3,6];
+snum = [1,2,3,4];
 gaplengthvec = [2.5 5 7.5 10 12.5 15 17.5 20 22.5 25 27.5 30];
 
 res_janssen = zeros(length(snum),length(gaplengthvec));
@@ -259,7 +265,7 @@ res_janssen = zeros(length(snum),length(gaplengthvec));
 fix(clock)
 for iii=1:length(snum)
     %get signal
-    filename = ['./wav/doerfler/sig_' num2str(snum(iii)) '.wav'];
+    filename = ['./wav/sig_' num2str(snum(iii)) '.wav'];
     [s,fs] = audioread(filename);
     s = s(1:100000);
     L = length(s);
@@ -285,7 +291,11 @@ for iii=1:length(snum)
         problemData.IMiss = M;
         problemData.x = depl_s;
         
-        sol = inpaintFrame_janssenInterpolation(problemData);
+        try
+            sol = inpaintFrame_janssenInterpolation(problemData);
+        catch
+            error('Please include inpainting toolbox from A.Adler, Audio Inpainting');
+        end
         
         tmp = snr_m(sol);
         res_janssen(iii,mmm) = tmp;
@@ -299,7 +309,7 @@ fix(clock)
 
 %% synthesis vs. analysis vs DR vs FISTA
 
-snum = [1,2,3,6];
+snum = [1,2,3,4];
 p = 0.8; %percentage of coefficients to delete
 
 tauvec = [7.5e-5 1e-4 2.5e-4 5e-4 7.5e-4 1e-3 2.5e-3 5e-3 1e-2 2.5e-2 5e-2 7.5e-2 1e-1 2.5e-1 5e-1 7.5e-1 1 5 10];
@@ -335,7 +345,7 @@ zzztotal = numel(res(:));
 fix(clock)
 for iii=1:length(snum)
     %get signal
-    filename = ['./wav/doerfler/sig_' num2str(snum(iii)) '.wav'];
+    filename = ['./wav/sig_' num2str(snum(iii)) '.wav'];
     [s,fs] = audioread(filename);
     s = s(1:100000);
     L = length(s);
@@ -380,5 +390,165 @@ end
 save('Experiments_DRvsFistavsSynvsAna_relnorm','res_relnorm');
 
 
+%%   automatic testrun, RANDOM with vary percentage p
+
+pvec = [0.3 0.35 0.4 0.45 0.5 0.55 0.6 0.65 0.7 0.75 0.8 0.85 0.9 0.95];
+
+snum = 1:4;
+tauvec = [1e-3 2.5e-3 5e-3 7.5e-3 1e-2 2.5e-2 5e-2 7.5e-2 1e-1 2.5e-1 5e-1];
+tauvec = [5e-3 7.5e-3 1e-2 2.5e-2 5e-2 7.5e-2 1e-1 2.5e-1 5e-1 1 2.5];
+
+transvec = [{'gab'},{'erb'},{'wav'}];
+transvec = [{'gab'},{'erb'}];
+
+threshvec = [{'lasso'},{'ew'},{'wgl'},{'pew'}];
+
+threshvec_ns = [{'lasso'},{'pew'}];
+threshvec_gab= [{'lasso'},{'pew'}];
+
+
+%result matrix
+res = zeros(length(pvec), length(snum),length(transvec),length(threshvec),length(tauvec));
+
+
+% Gabor
+settings.a = 160;
+settings.M = 3125;
+settings.width = 23.22;
+
+% ERBLET
+settings.ebins = 18;
+settings.qvar = 0.08;
+
+% Wavelet
+settings.fmin = 100;
+settings.wbins = 120;
+settings.bw = 3;
+
+
+
+%settings.perslength = .20;
+settings.plotting = 0;
+
+
+zzz = 1;
+zzztotal = length(pvec)*length(snum)*length(transvec)*2;
+
+
+fix(clock)
+for ggg = 1:length(pvec)
+    p = pvec(ggg);
+    for iii=1:length(snum)
+        %get signal
+        filename = ['./wav/sig_' num2str(snum(iii)) '.wav'];
+        [s,fs] = audioread(filename);
+        if snum(iii)==6
+            s = s(1:200000); %260000
+        else
+            s = s(1:100000);
+        end
+
+        if snum(iii) == 1
+            settings.perslength = 72;
+            settings.percussionpersistence = 0;
+        elseif snum(iii) == 2
+            settings.perslength = 48;
+            settings.percussionpersistence = 0;
+        elseif snum(iii) == 3
+            settings.perslength = 24;
+            settings.percussionpersistence = 1;
+        else
+            settings.perslength = 48;
+            settings.percussionpersistence = 0;
+        end
+        L = length(s);
+        %get mask
+        rng(10);
+        Mask = rand(size(s)) > p;
+        depl_s = Mask.*s;
+        M = logical(1-Mask);
+        snr_m = @(sol) 20 *log10(std(s(M))/std(sol(M)-s(M)));
+
+        for jjj=1:length(transvec)
+            settings.trans = transvec{jjj};
+
+            if (strcmp(settings.trans,'gab'))
+                threshvec = threshvec_gab;
+            else
+                threshvec = threshvec_ns;
+            end
+
+            for kkk=1:length(threshvec)
+                settings.thres = threshvec{kkk};
+
+                lll = 6;
+                tau = tauvec(lll); %middle element
+                
+                sol = audio_inpainting(s,depl_s,Mask,fs,tau,settings);
+                tempsnr_prev = snr_m(sol);
+                res(ggg,iii,jjj,kkk,lll) = tempsnr_prev;
+                
+                fprintf('\n -- %d / % d -- \n',zzz,zzztotal);
+                fprintf('%2.2f -> %d: %s (%5s) @tau=%f - SNR: %2.2f',pvec(ggg),snum(iii),settings.trans,settings.thres, tau, tempsnr_prev);
+                
+                
+                lll = lll-1;
+                tau = tauvec(lll); %next element
+                
+                sol = audio_inpainting(s,depl_s,Mask,fs,tau,settings);
+                tempsnr = snr_m(sol);
+                res(ggg,iii,jjj,kkk,lll) = tempsnr;
+                
+                fprintf('\n -- %d / % d -- \n',zzz,zzztotal);
+                fprintf('%2.2f -> %d: %s (%5s) @tau=%f - SNR: %2.2f',pvec(ggg), snum(iii),settings.trans,settings.thres, tau, tempsnr);
+                
+                if (tempsnr_prev < tempsnr)
+                    while (tempsnr > tempsnr_prev)
+                        tempsnr_prev = tempsnr;
+                        lll = lll - 1;
+                        tau = tauvec(lll);
+                        sol = audio_inpainting(s,depl_s,Mask,fs,tau,settings);
+                        tempsnr = snr_m(sol);
+                        res(ggg,iii,jjj,kkk,lll) = tempsnr;
+
+                        fprintf('\n -- %d / % d -- \n',zzz,zzztotal);
+                        fprintf('%2.2f -> %d: %s (%5s) @tau=%f - SNR: %2.2f',pvec(ggg), snum(iii),settings.trans,settings.thres, tau, tempsnr);
+                    end
+                else
+                    lll = lll + 1;
+                    tmp = tempsnr;
+                    tempsnr = tempsnr_prev;
+                    tempsnr_prev = tmp;
+                    while(tempsnr > tempsnr_prev)
+                        tempsnr_prev = tempsnr;
+                        lll = lll + 1;
+                        tau = tauvec(lll);
+                        sol = audio_inpainting(s,depl_s,Mask,fs,tau,settings);
+                        tempsnr = snr_m(sol);
+                        res(ggg,iii,jjj,kkk,lll) = tempsnr;
+
+                        fprintf('\n -- %d / % d -- \n',zzz,zzztotal);
+                        fprintf('%2.2f -> %d: %s (%5s) @tau=%f - SNR: %2.2f',pvec(ggg), snum(iii),settings.trans,settings.thres, tau, tempsnr);
+                    end
+                end
+              
+                
+                zzz = zzz + 1;
+%                 for lll=1:length(tauvec)
+%                     tau = tauvec(lll);
+% 
+%                     sol = audio_inpainting(s,depl_s,Mask,fs,tau,settings);
+%                     res(ggg,iii,jjj,kkk,lll) = snr_m(sol);
+%                     fprintf('\n -- %d / % d -- \n',zzz,zzztotal);
+%                     fprintf('%d: %s (%5s) - SNR: %2.2f',snum(iii),settings.trans,settings.thres, snr_m(sol));
+%                     zzz = zzz + 1;
+%                 end
+            end 
+        end
+    end
+end
+fix(clock)
+
+save('Experiments_30-95percent_JazzQuintet','res');
 
 
